@@ -1,0 +1,11 @@
+.chloropethMapContainer{
+  position: relative;
+}
+#tooltip{
+  opacity: 0;
+  position: absolute;
+  color: white;
+  font-weight: bold;
+  background-color: grey;
+  padding: 5px 10px;
+}
