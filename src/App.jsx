@@ -3,6 +3,7 @@ import './App.css'
 import * as d3 from "d3";
 import * as topojson from 'topojson'
 
+
 function ChloropethMap( {countiesDataset, educationDataset} ){
   const chloropethMapContainer = useRef(null)
 
@@ -13,6 +14,7 @@ function ChloropethMap( {countiesDataset, educationDataset} ){
     if(!educationDataset) return;
 
     d3.select(chloropethMapContainer.current).selectAll('*').remove();
+    d3.select('.main').select('#tooltip').remove();
 
     const svg = d3.select(chloropethMapContainer.current)
     .append('svg')
@@ -20,22 +22,69 @@ function ChloropethMap( {countiesDataset, educationDataset} ){
     .attr('height', 1000);
 
     //tooltip
-    const tooltip = d3.select('.chloropethMapContainer')
+    const tooltip = d3.select('.main')
     .append('div')
     .attr('id','tooltip')
 
     //legend
-    const xScale = d3.scaleLinear()
-    .domain([d3.min(educationDataset, d => d.bachelorsOrHigher),d3.max(educationDataset, d => d.bachelorsOrHigher)])
-    .range([0,100])
+    var x = d3.scaleLinear().domain([2.6, 75.1]).rangeRound([600, 860]);
 
-    const xAxis = d3.axisBottom(xScale)
-    .ticks(8, 's')
+var color = d3
+  .scaleThreshold()
+  .domain(d3.range(2.6, 75.1, (75.1 - 2.6) / 8))
+  .range(d3.schemeBlues[9]);
 
+var g = svg
+  .append('g')
+  .attr('class', 'key')
+  .attr('id', 'legend')
+  .attr('transform', 'translate(0,40)');
 
-    svg.append('g')
-    .attr('transform',`translate(700,100)`)
-    .call(xAxis);
+g.selectAll('rect')
+  .data(
+    color.range().map(function (d) {
+      d = color.invertExtent(d);
+      if (d[0] === null) {
+        d[0] = x.domain()[0];
+      }
+      if (d[1] === null) {
+        d[1] = x.domain()[1];
+      }
+      return d;
+    })
+  )
+  .enter()
+  .append('rect')
+  .attr('height', 8)
+  .attr('x', function (d) {
+    return x(d[0]);
+  })
+  .attr('width', function (d) {
+    return d[0] && d[1] ? x(d[1]) - x(d[0]) : x(null);
+  })
+  .attr('fill', function (d) {
+    return color(d[0]);
+  });
+
+g.append('text')
+  .attr('class', 'caption')
+  .attr('x', x.range()[0])
+  .attr('y', -6)
+  .attr('fill', '#000')
+  .attr('text-anchor', 'start')
+  .attr('font-weight', 'bold');
+
+g.call(
+  d3
+    .axisBottom(x)
+    .tickSize(13)
+    .tickFormat(function (x) {
+      return Math.round(x) + '%';
+    })
+    .tickValues(color.domain())
+)
+  .select('.domain')
+  .remove();
 
 
     //state outlines
@@ -59,33 +108,11 @@ function ChloropethMap( {countiesDataset, educationDataset} ){
     .attr('data-fips', d => d.id)
     .attr('data-education', d => educationDataset.filter((county) => county.fips === d.id)[0].bachelorsOrHigher)
     .attr('d', d3.geoPath())
+    .attr('stroke','white')
     .attr('fill', d => {
       const countyData = educationDataset.filter((county) => county.fips === d.id)[0]
 
-      if(countyData.bachelorsOrHigher < 3){
-        return colorPallete[0];
-      }
-      else if(countyData.bachelorsOrHigher < 12){
-        return colorPallete[1];
-      }
-      else if(countyData.bachelorsOrHigher < 21){
-        return colorPallete[2];
-      }
-      else if(countyData.bachelorsOrHigher < 30){
-        return colorPallete[3];
-      }
-      else if(countyData.bachelorsOrHigher < 39){
-        return colorPallete[4];
-      }
-      else if(countyData.bachelorsOrHigher < 48){
-        return colorPallete[5];
-      }
-      else if(countyData.bachelorsOrHigher < 57){
-        return colorPallete[6];
-      }
-      else {
-        return colorPallete[7];
-      }
+      return color(countyData.bachelorsOrHigher)
     })
     .attr('stroke','none')
     .on('mouseover', (event, d) => {
@@ -94,8 +121,8 @@ function ChloropethMap( {countiesDataset, educationDataset} ){
 
       tooltip
       .attr('data-education', countyData.bachelorsOrHigher)
-      .style('left', event.pageX - 20 + 'px')
-      .style('top', event.pageY - 500 + 'px')
+      .style('left', event.pageX + 20 + 'px')
+      .style('top', event.pageY - 40 + 'px')
       .style('opacity', 0.8)
       .html(`${countyData.area_name}, ${countyData.state}: ${countyData.bachelorsOrHigher}%`)
     })
@@ -140,7 +167,10 @@ function App() {
   },[])
 
   return (
-    <ChloropethMap countiesDataset={countiesDataset} educationDataset={ educationDataset }/>
+    <div className="main">
+      <ChloropethMap countiesDataset={countiesDataset} educationDataset={ educationDataset }/>
+    </div>
+
   )
 }
 
